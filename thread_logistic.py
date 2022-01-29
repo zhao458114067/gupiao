@@ -181,7 +181,12 @@ if __name__ == '__main__':
     predict_path = os.path.join(end_date, "predict_logistic")
     os.makedirs(predict_path, exist_ok=True)
     print(start_date, end_date)
+
+    for code in list(all_code):
+        if ("300" in code or "688" in code):
+            all_code.remove(code)
+            
     # 下载数据
-    with ThreadPoolExecutor(max_workers=200) as tpe:
+    with ThreadPoolExecutor(max_workers=30) as tpe:
         tpe.map(download_code_data, [(code, start_date, end_date, data_path, predict_path) for code in all_code])
     # download_code_data(symcode, start_date, end_date, data_path, predict_path)

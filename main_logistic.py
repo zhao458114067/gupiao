@@ -16,8 +16,8 @@ import joblib
 import matplotlib.pyplot as plt
 from main_linear import get_today
 
-symcode = "002387"
-huanshou = 1
+symcode = "600372"
+huanshou = 1.47
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36',
@@ -76,25 +76,28 @@ def download_code_data(*args):
                 f.write(file_str)
             print("股票编号：" + code + " 数据爬取成功!\n")
             tomorrow_num = []
-            for i in range(10):
-                today_data = text[2]
-                # today_data = get_today(code)
-                train_and_predict(code, today_data, tomorrow_num)
-            if len(tomorrow_num) > 7:
-                result = "股票编号：" + code + "\r\n股票名称：" + today_data.split(",")[2] + "\r\n下个交易日会涨，tomorrow_num:" + str(
-                    len(tomorrow_num))
-                with open(os.path.join(end_date + "\\predict_logistic", "red" + code + '.csv'.format(code=code)),
-                          'w',
-                          encoding='utf-8') as f:
-                    f.write(result)
-            if len(tomorrow_num) < 3:
-                result = "股票编号：" + code + "\r\n股票名称：" + today_data.split(",")[2] + "\r\n下个交易日会跌，tomorrow_num:" + str(
-                    len(tomorrow_num))
-                with open(os.path.join(end_date + "\\predict_logistic", "green" + code + '.csv'.format(code=code)),
-                          'w',
-                          encoding='utf-8') as f:
-                    f.write(result)
-            print(len(tomorrow_num))
+            today_data = text[2]
+            today_data = get_today(code)
+            train_and_predict(code, today_data, tomorrow_num)
+            # for i in range(10):
+            #     today_data = text[2]
+            #     today_data = get_today(code)
+            #     train_and_predict(code, today_data, tomorrow_num)
+            # if len(tomorrow_num) > 9:
+            #     result = "时间：" + date.today().strftime("%Y%m%d%H") + "\r\n股票编号：" + code + "\r\n股票名称：" + today_data.split(",")[2] + "\r\n下个交易日会涨，tomorrow_num:" + str(
+            #         len(tomorrow_num))
+            #     with open(os.path.join(end_date + "\\predict_logistic", "red" + code + '.csv'.format(code=code)),
+            #               'w',
+            #               encoding='utf-8') as f:
+            #         f.write(result)
+            # if len(tomorrow_num) < 3:
+            #     result = "时间：" + date.today().strftime("%Y%m%d%H") + "\r\n股票编号：" + code + "\r\n股票名称：" + today_data.split(",")[2] + "\r\n下个交易日会跌，tomorrow_num:" + str(
+            #         len(tomorrow_num))
+            #     with open(os.path.join(end_date + "\\predict_logistic", "green" + code + '.csv'.format(code=code)),
+            #               'w',
+            #               encoding='utf-8') as f:
+            #         f.write(result)
+            # print(len(tomorrow_num))
             return True
     return False
 
@@ -123,10 +126,10 @@ def train_and_predict(code, today_data, tomorrow_num):
     transfer = StandardScaler()
     x_train = transfer.fit_transform(x_train)
     x_test = transfer.transform(x_test)
-    if os.path.exists("model.pkl"):
-        esetimator = joblib.load("model.pkl")
-    else:
-        esetimator = LogisticRegression()
+    # if os.path.exists("model.pkl"):
+    #     esetimator = joblib.load("model.pkl")
+    # else:
+    esetimator = LogisticRegression()
     esetimator.fit(x_train, y_train)
     y_predict = esetimator.predict(x_test)
 
@@ -142,31 +145,35 @@ def train_and_predict(code, today_data, tomorrow_num):
     x_today = transfer.transform(x_today)
     t_predict = esetimator.predict(x_today)
     # 绘图
-    plt.plot(y_test, color='red', label='Original')
-    plt.plot(y_train, color='green', label='Predict')
-    plt.xlabel('the number of test data')
-    plt.ylabel('earn_rate')
-    plt.title(start_date + '-' + end_date)
-    plt.legend()
+    # y_test = y_test.sort_index()
+    # plt.plot(y_test.values, color='red', label='Original')
+    # plt.plot(y_predict, color='green', label='Predict')
+    # plt.xlabel('the number of test data')
+    # plt.ylabel('earn_rate')
+    # plt.title('')
+    # plt.legend()
     # plt.show()
-    if t_predict[0] > 0:
-        tomorrow_num.append(1)
-    #     result = "股票编号：" + code + "\r\n股票名称：" + today_data.split(",")[2] + "\r\n下个交易日会涨" + str(
-    #         t_predict) + "，精确率：" + str(
-    #         score)
-    #     if score > 0.5:
-    #         with open(os.path.join(end_date + "\\predict_logistic", "red" + code + '.csv'.format(code=code)), 'w',
-    #                   encoding='utf-8') as f:
-    #             f.write(result)
-    # else:
-    #     result = "股票编号：" + code + "\r\n股票名称：" + today_data.split(",")[2] + "\r\n下个交易日会跌" + str(
-    #         t_predict) + "，精确率：" + str(
-    #         score)
-    #     if score > 0.5:
-    #         with open(os.path.join(end_date + "\\predict_logistic", "green" + code + '.csv'.format(code=code)), 'w',
-    #                   encoding='utf-8') as f:
-    #             f.write(result)
-    # print(result)
+    if float(score) > 0.7:
+        if t_predict[0] > 0:
+            tomorrow_num.append(1)
+            result = "时间：" + date.today().strftime("%Y%m%d%H") + "\r\n股票编号：" + code + "\r\n股票名称：" + \
+                     today_data.split(",")[
+                         2] + "\r\n下个交易日会涨" + str(t_predict) + "，精确率：" + str(score)
+            if score > 0.75:
+                with open(os.path.join(end_date + "\\predict_logistic", "red" + code + '.csv'.format(code=code)), 'w',
+                          encoding='utf-8') as f:
+                    f.write(result)
+        else:
+            result = "时间：" + date.today().strftime("%Y%m%d%H") + "\r\n股票编号：" + code + "\r\n股票名称：" + \
+                     today_data.split(",")[
+                         2] + "\r\n下个交易日会跌" + str(t_predict) + "，精确率：" + str(score)
+            if score > 0.75:
+                with open(os.path.join(end_date + "\\predict_logistic", "green" + code + '.csv'.format(code=code)), 'w',
+                          encoding='utf-8') as f:
+                    f.write(result)
+        print(result)
+
+
 
 
 if __name__ == '__main__':
@@ -185,10 +192,15 @@ if __name__ == '__main__':
     predict_path = os.path.join(end_date, "predict_logistic")
     os.makedirs(predict_path, exist_ok=True)
     print(start_date, end_date)
+    # random.shuffle(all_code)
     # 下载数据
     # with ThreadPoolExecutor(max_workers=20) as tpe:
     #     tpe.map(download_code_data, [(code, start_date, end_date, data_path, predict_path) for code in all_code])
     # start()
-    random.shuffle(all_code)
+
+    for code in list(all_code):
+        if ("300" in code or "688" in code):
+            all_code.remove(code)
+
     for code in all_code:
         download_code_data(code, start_date, end_date, data_path, predict_path)
