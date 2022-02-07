@@ -16,8 +16,7 @@ import joblib
 import matplotlib.pyplot as plt
 import json
 
-symcode = "000670"
-huanshou = 2.07
+is_my_code = False
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36',
@@ -45,7 +44,7 @@ def get_today(code):
                          + "," + str(today_data["price"]) + "," + str(today_data["high"]) \
                          + "," + str(today_data["low"]) + "," + str(today_data["open"]) \
                          + "," + str(today_data["yestclose"]) + "," + str(today_data["updown"]) \
-                         + "," + str(today_data["percent"]) + "," + str(huanshou) + "," + str(today_data["volume"]) \
+                         + "," + str(today_data["percent"]) + "," + str(2.23) + "," + str(today_data["volume"]) \
                          + "," + str(today_data["turnover"])
 
             return today_data, price
@@ -69,7 +68,7 @@ def download_code_data(*args):
             for i in range(len(text), 3, -1):
                 now = text[i - 1 - 1].split(",")[9]
                 nextZhangFu = text[i - 1 - 1 - 1].split(",")[9]
-                nextHigh = text[i - 1 - 1 - 1].split(",")[4]
+                nextHigh = text[i - 1 - 1 - 1 - 1].split(",")[4]
                 nextLow = text[i - 1 - 1 - 1].split(",")[5]
                 if nextZhangFu.lower() == "none" or now.lower() == "none":
                     text[i - 1 - 1] = ""
@@ -204,16 +203,16 @@ def train_and_predict(code, today_data):
              str(t_predict_high) + ",精确率：" + str(score_high) + "\n" + "低：" + str(t_predict_low) + ",精确率：" + str(
         score_low) + "\n浮动：" + str(fudong)
 
-    if score_high > 0.992 and score_low > 0.992:
+    if (score_high > 0.991 and score_low > 0.998 and fudong > 4) or (is_my_code):
         with open(os.path.join(end_date + "\\predict_linear", code + '.csv'.format(code=code)), 'w',
                   encoding='utf-8') as f:
             f.write(result)
 
-    all_result = gupiao_name + str(t_predict_low) + "-" + str(t_predict_high) + "\n"
+        all_result = gupiao_name + str(t_predict_low) + "-" + str(t_predict_high) + "\n"
 
-    with open(os.path.join(end_date + "\\predict_linear", 'all_result.csv'.format(code=code)), 'a',
-              encoding='utf-8') as f:
-        f.write(all_result)
+        with open(os.path.join(end_date + "\\predict_linear", 'all_result.csv'.format(code=code)), 'a',
+                  encoding='utf-8') as f:
+            f.write(all_result)
     print(result)
 
 
@@ -257,13 +256,11 @@ def get_score_result(x, y, today_data):
 
 
 if __name__ == '__main__':
-    sorter_by = "f6"
-    sorter_by = "f12"
     if len(sys.argv) > 1:
         all_code = sys.argv[1:]
         # print(all_code)
     else:
-        all_code_url = "http://44.push2.eastmoney.com/api/qt/clist/get?pn=1&pz=500&po=0&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=" + sorter_by + "&fs=m:0+t:6,m:0+t:13,m:0+t:80,m:1+t:2,m:1+t:23&fields=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23,f24,f25,f22,f11,f62,f128,f136,f115,f152&_=1579615221139"
+        all_code_url = "http://44.push2.eastmoney.com/api/qt/clist/get?pn=1&pz=1000&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f6&fs=m:0+t:6,m:0+t:13,m:0+t:80,m:1+t:2,m:1+t:23&fields=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23,f24,f25,f22,f11,f62,f128,f136,f115,f152&_=1579615221139"
         r = requests.get(all_code_url, timeout=5).json()
         all_code = [data['f12'] for data in r['data']['diff']]
         all_name = [data['f14'] for data in r['data']['diff']]
@@ -287,7 +284,10 @@ if __name__ == '__main__':
     #     tpe.map(download_code_data, [(code, start_date, end_date, data_path, predict_path) for code in all_code])
     # start()
 
-    my_code = ["000779", "000629", "000778", "600875"]
+    # all_code = ["600571", "000629", "600330", "600367", "600699", "600872"]
+    if len(all_code) < 20:
+        is_my_code = True
+
     for code in all_code:
         try:
             download_code_data(code, start_date, end_date, data_path, predict_path)

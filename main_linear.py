@@ -16,8 +16,7 @@ import joblib
 import matplotlib.pyplot as plt
 import json
 
-symcode = "000670"
-huanshou = 2.07
+is_my_code = False
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36',
@@ -45,7 +44,7 @@ def get_today(code):
                          + "," + str(today_data["price"]) + "," + str(today_data["high"]) \
                          + "," + str(today_data["low"]) + "," + str(today_data["open"]) \
                          + "," + str(today_data["yestclose"]) + "," + str(today_data["updown"]) \
-                         + "," + str(today_data["percent"]) + "," + str(huanshou) + "," + str(today_data["volume"]) \
+                         + "," + str(today_data["percent"]) + "," + str(2.23) + "," + str(today_data["volume"]) \
                          + "," + str(today_data["turnover"])
 
             return today_data, price
@@ -144,7 +143,7 @@ def train_and_predict(code, today_data):
     data.drop(0, axis=0, inplace=True)
 
     # 第二天的必须删除，不知道后天的高点
-    data.drop(1, axis=0, inplace=True)
+    # data.drop(1, axis=0, inplace=True)
 
     # 数据处理，去除？转换为nan
     data.replace(to_replace="?", value=np.nan)
@@ -204,7 +203,7 @@ def train_and_predict(code, today_data):
              str(t_predict_high) + ",精确率：" + str(score_high) + "\n" + "低：" + str(t_predict_low) + ",精确率：" + str(
         score_low) + "\n浮动：" + str(fudong)
 
-    if score_high > 0.998 and score_low > 0.998 and fudong > 4:
+    if (score_high > 0.998 and score_low > 0.998 and fudong > 4) or (is_my_code):
         with open(os.path.join(end_date + "\\predict_linear", code + '.csv'.format(code=code)), 'w',
                   encoding='utf-8') as f:
             f.write(result)
@@ -285,7 +284,10 @@ if __name__ == '__main__':
     #     tpe.map(download_code_data, [(code, start_date, end_date, data_path, predict_path) for code in all_code])
     # start()
 
-    my_code = ["000779", "000629", "000778", "600875", "600358"]
+    # all_code = ["600571", "000629", "600330", "600367", "600699", "600872"]
+    if len(all_code) < 20:
+        is_my_code = True
+
     for code in all_code:
         try:
             download_code_data(code, start_date, end_date, data_path, predict_path)
