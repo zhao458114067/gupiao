@@ -68,7 +68,7 @@ def download_code_data(*args):
             for i in range(len(text), 3, -1):
                 now = text[i - 1 - 1].split(",")[9]
                 nextZhangFu = text[i - 1 - 1 - 1].split(",")[9]
-                nextHigh = text[i - 1 - 1 - 1].split(",")[4]
+                nextHigh = text[i - 1 - 1 - 1].split(",")[3]
                 nextLow = text[i - 1 - 1 - 1].split(",")[5]
                 if nextZhangFu.lower() == "none" or now.lower() == "none":
                     text[i - 1 - 1] = ""
@@ -138,8 +138,10 @@ def train_and_predict(code, today_data):
 
     real_data_today_riqi = today_data.split(",")[0]
     data_today_riqi = list(today_riqi).__getitem__(0)
-    # if data_today_riqi == real_data_today_riqi:
-    today_data = DataFrame([DataFrame(data.iloc[0].values.tolist())[0]]).iloc[:, :len(data.columns) - 3]
+    if data_today_riqi == real_data_today_riqi:
+        today_data = DataFrame([DataFrame(data.iloc[0].values.tolist())[0]]).iloc[:, :len(data.columns) - 3]
+    else:
+        today_data = DataFrame([today_data.split(",")]).iloc[:, 3: 13]
     data.drop(0, axis=0, inplace=True)
 
     # 第二天的必须删除，不知道后天的高点
@@ -203,7 +205,7 @@ def train_and_predict(code, today_data):
              str(t_predict_high) + ",精确率：" + str(score_high) + "\n" + "低：" + str(t_predict_low) + ",精确率：" + str(
         score_low) + "\n浮动：" + str(fudong)
 
-    if (score_high > 0.998 and score_low > 0.998 and fudong > 4) or (is_my_code):
+    if (fudong > 5) or (is_my_code):
         with open(os.path.join(end_date + "\\predict_linear", code + '.csv'.format(code=code)), 'w',
                   encoding='utf-8') as f:
             f.write(result)
@@ -240,7 +242,6 @@ def get_score_result(x, y, today_data):
     # 保存模型
     # joblib.dump(esetimator, "model1.pkl")
     # 预测明天的情况
-    # x_today = DataFrame([today_data.split(",")])
     x_today = transfer.transform(today_data)
     t_predict = esetimator.predict(x_today)
     # 绘图
@@ -260,7 +261,7 @@ if __name__ == '__main__':
         all_code = sys.argv[1:]
         # print(all_code)
     else:
-        all_code_url = "http://44.push2.eastmoney.com/api/qt/clist/get?pn=1&pz=1000&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f6&fs=m:0+t:6,m:0+t:13,m:0+t:80,m:1+t:2,m:1+t:23&fields=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23,f24,f25,f22,f11,f62,f128,f136,f115,f152&_=1579615221139"
+        all_code_url = "http://44.push2.eastmoney.com/api/qt/clist/get?pn=1&pz=30000&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f6&fs=m:0+t:6,m:0+t:13,m:0+t:80,m:1+t:2,m:1+t:23&fields=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23,f24,f25,f22,f11,f62,f128,f136,f115,f152&_=1579615221139"
         r = requests.get(all_code_url, timeout=5).json()
         all_code = [data['f12'] for data in r['data']['diff']]
         all_name = [data['f14'] for data in r['data']['diff']]

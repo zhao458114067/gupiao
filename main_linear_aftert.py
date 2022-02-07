@@ -203,7 +203,7 @@ def train_and_predict(code, today_data):
              str(t_predict_high) + ",精确率：" + str(score_high) + "\n" + "低：" + str(t_predict_low) + ",精确率：" + str(
         score_low) + "\n浮动：" + str(fudong)
 
-    if (score_high > 0.991 and score_low > 0.998 and fudong > 4) or (is_my_code):
+    if (fudong > 10) or (is_my_code):
         with open(os.path.join(end_date + "\\predict_linear", code + '.csv'.format(code=code)), 'w',
                   encoding='utf-8') as f:
             f.write(result)
