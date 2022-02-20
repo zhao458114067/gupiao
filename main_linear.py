@@ -52,7 +52,7 @@ def get_today(code):
 
 def download_code_data(*args):
     code, start_date, end_date, data_path, predict_path = args
-    code_data_length_limit = 4396
+    code_data_length_limit = 2500
     code_download_path_urls = (
         "http://quotes.money.163.com/service/chddata.html?code=1{code}&start={start}&end={end}&fields={fields}",
         "http://quotes.money.163.com/service/chddata.html?code=0{code}&start={start}&end={end}&fields={fields}"
@@ -82,7 +82,7 @@ def download_code_data(*args):
                 today_data, price = get_today(code)
             except:
                 continue
-            if today_data is not None and float(price) < 100:
+            if today_data is not None and 100 > float(price) > 1:
                 with open(os.path.join(data_path, '{code}.csv'.format(code=code)), 'w', encoding='utf-8') as f:
                     file_str = ""
                     for data in text:
@@ -129,7 +129,9 @@ def train_and_predict(code, today_data):
                     'afterTomorrowHigh', 'tomorrowLow']
 
     gupiao_name = today_data.split(",")[2]
-    #
+    if gupiao_name.__contains__("ST") or gupiao_name.__contains__("退市"):
+        return
+        #
     data = pd.read_csv(end_date + "\\data\\" + code + ".csv", names=column_names)
     # 如果日期相同，取数据里边的日期
     today_riqi = data.get('日期')
@@ -137,6 +139,7 @@ def train_and_predict(code, today_data):
         ['日期', '股票代码', '名称', '流通市值', '总市值'], axis=1, inplace=True)
 
     real_data_today_riqi = today_data.split(",")[0]
+    today_price = float(today_data.split(",")[3])
     data_today_riqi = list(today_riqi).__getitem__(0)
     if data_today_riqi == real_data_today_riqi:
         today_data = DataFrame([DataFrame(data.iloc[0].values.tolist())[0]]).iloc[:, :len(data.columns) - 3]
@@ -153,7 +156,7 @@ def train_and_predict(code, today_data):
     data.dropna(inplace=True)
     data_length = len(data)
     if data_length <= 0:
-        return;
+        return
 
     # 取特征值、目标值
     x = data.iloc[:, : len(data.columns) - 3]
@@ -200,12 +203,13 @@ def train_and_predict(code, today_data):
     #     with open(os.path.join(end_date + "\\predict_linear", file_type + code + '.csv'.format(code=code)), 'w',
     #               encoding='utf-8') as f:
     #         f.write(result)
+    diefu = -((t_predict_low[0] - today_price) / today_price) * 100
 
     result = "股票编号：" + code + "\n股票名称：" + gupiao_name + "\n高：" + \
              str(t_predict_high) + ",精确率：" + str(score_high) + "\n" + "低：" + str(t_predict_low) + ",精确率：" + str(
-        score_low) + "\n浮动：" + str(fudong)
+        score_low) + "\n浮动：" + str(fudong) + "\n跌幅：" + str(diefu)
 
-    if (fudong > 5) or (is_my_code):
+    if (fudong > 4.5 and t_predict_high > float(today_price) and diefu < 4.5) or (is_my_code):
         with open(os.path.join(end_date + "\\predict_linear", gupiao_name + '.csv'.format(code=code)), 'w',
                   encoding='utf-8') as f:
             f.write(result)
@@ -261,7 +265,10 @@ if __name__ == '__main__':
         all_code = sys.argv[1:]
         # print(all_code)
     else:
-        all_code_url = "http://44.push2.eastmoney.com/api/qt/clist/get?pn=1&pz=4703&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f6&fs=m:0+t:6,m:0+t:13,m:0+t:80,m:1+t:2,m:1+t:23&fields=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23,f24,f25,f22,f11,f62,f128,f136,f115,f152&_=1579615221139"
+        # 换手
+        all_code_url = "http://44.push2.eastmoney.com/api/qt/clist/get?pn=1&pz=4396&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f8&fs=m:0+t:6,m:0+t:13,m:0+t:80,m:1+t:2,m:1+t:23&fields=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23,f24,f25,f22,f11,f62,f128,f136,f115,f152&_=1579615221139"
+        # 成交量
+        # all_code_url = "http://44.push2.eastmoney.com/api/qt/clist/get?pn=1&pz=4396&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f6&fs=m:0+t:6,m:0+t:13,m:0+t:80,m:1+t:2,m:1+t:23&fields=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23,f24,f25,f22,f11,f62,f128,f136,f115,f152&_=1579615221139"
         r = requests.get(all_code_url, timeout=5).json()
         all_code = [data['f12'] for data in r['data']['diff']]
         all_name = [data['f14'] for data in r['data']['diff']]
@@ -278,14 +285,14 @@ if __name__ == '__main__':
     for code in list(all_code):
         if ("688" in code or code.startswith("30")):
             all_code.remove(code)
-    random.shuffle(all_code)
+    # random.shuffle(all_code)
     # print(start_date, end_date)
     # 下载数据
     # with ThreadPoolExecutor(max_workers=80) as tpe:
     #     tpe.map(download_code_data, [(code, start_date, end_date, data_path, predict_path) for code in all_code])
     # start()
 
-    # all_code = ["600571", "000629", "600330", "600367", "600699", "600872"]
+    # all_code = ["000597", "002326"]
     if len(all_code) < 20:
         is_my_code = True
 
