@@ -283,7 +283,7 @@ if __name__ == '__main__':
     predict_path = os.path.join(end_date, "predict_linear")
     os.makedirs(predict_path, exist_ok=True)
     for code in list(all_code):
-        if ("688" in code or code.startswith("30")):
+        if code.startswith("688") or code.startswith("30"):
             all_code.remove(code)
     # random.shuffle(all_code)
     # print(start_date, end_date)
