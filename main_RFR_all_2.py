@@ -35,29 +35,24 @@ headers = {
 }
 
 
-def get_today(code):
+def get_today(code, start_date, end_date):
     url1 = (
-        "https://59.push2his.eastmoney.com/api/qt/stock/kline/get?cb=&secid=1.{code}&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61&klt=101&fqt=0&beg=20220101&end=20500101",
-        "https://59.push2his.eastmoney.com/api/qt/stock/kline/get?cb=&secid=0.{code}&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61&klt=101&fqt=0&beg=20220101&end=20500101")
+        f"https://59.push2his.eastmoney.com/api/qt/stock/kline/get?cb=&secid=1.{code}&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61&klt=101&fqt=0&beg={start_date}&end={end_date}",
+        f"https://59.push2his.eastmoney.com/api/qt/stock/kline/get?cb=&secid=0.{code}&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61&klt=101&fqt=0&beg={start_date}&end={end_date}")
+
     for u in url1:
-        u = u.format(code=code)
+        u = u.format(code=code, start_date=start_date, end_date=end_date)
         response = requests.get(u, headers=headers).text
         if (len(response) > 100):
             today_data = json.loads(response)["data"]
             get_code = today_data["code"]
-            name = today_data["name"]
-            if name.__contains__("ST") or name.__contains__("退市"):
-                return
-
-            klines = today_data["klines"]
-            if code == get_code and len(klines) > 0:
+            if code == get_code:
+                klines = today_data["klines"]
                 today_kline = klines[len(klines) - 1]
                 today_kline = today_kline.split(",")
                 today_huan = today_kline[len(today_kline) - 1]
-                today_liang = today_kline[len(today_kline) - 6]
+                today_price = today_kline[len(today_kline) - 9]
                 break
-            else:
-                continue
 
     url = (
         "http://api.money.126.net/data/feed/1{code}",
@@ -72,16 +67,13 @@ def get_today(code):
             response = response.split(c)[1]
             today_data = json.loads(response)
             if today_data["symbol"] == code:
-                price = str(today_data["price"])
-                if float(price) == 0:
-                    continue
                 today_data = date.today().strftime("%Y-%m-%d") + "," + today_data["symbol"] + "," + today_data["name"] \
                              + "," + str(today_data["price"]) + "," + str(today_data["high"]) \
                              + "," + str(today_data["low"]) + "," + str(today_data["open"]) \
                              + "," + str(today_data["yestclose"]) + "," + str(today_data["updown"]) \
                              + "," + str(today_huan) + "," + str(today_data["volume"])
 
-                return today_data, price, today_huan
+                return today_data, today_price, today_huan
 
 
 def get_score_result(x, y, today_data, grid_search):
@@ -104,7 +96,9 @@ def get_score_result(x, y, today_data, grid_search):
         y_train = y_transfer.fit_transform(DataFrame(y_train))
         x_test = x_transfer.transform(x_test)
         y_test = y_transfer.transform(DataFrame(y_test))
-        grid_search = RandomForestRegressor(n_estimators=2000, random_state=42, n_jobs=-1)
+        grid_search = RandomForestRegressor(n_estimators=2000, max_depth=15, max_features='sqrt',
+                                            min_samples_leaf=10, min_samples_split=10, random_state=42,
+                                            n_jobs=-1)
 
         # grid_search = GradientBoostingRegressor(random_state=42)
         param_grid = [
@@ -141,23 +135,26 @@ def get_score_result(x, y, today_data, grid_search):
 
 
 def train_and_predict(*args):
-    code, grid_search = args[0]
-    today_data = get_today(code)[0]
+    code, grid_search, start_date, end_date = args[0]
+    print("爬取：" + code)
+    today_data, today_price, today_huan = get_today(code, start_date, end_date)
+    today_price = float(today_price)
+    print(code + " today_price", today_price)
+    if float(today_price) > 20 or float(today_price) < 4:
+        return
     # 读取文件
     column_names = ['日期', '股票代码', '名称', '收盘价', '最高价', '最低价', '开盘价', '前收盘',
                     '涨跌额', '涨跌幅', '换手率', '成交量', '成交金额', '流通市值', '总市值', 'tomorrowZhangFu',
                     'afterTomorrowHigh', 'tomorrowLow']
 
     gupiao_name = today_data.split(",")[2]
-    today_price = float(today_data.split(",")[3])
-    print(code + " today_price", today_price)
     if gupiao_name.__contains__("ST") or gupiao_name.__contains__("退市"):
         return
 
     if not (os.path.exists("model\\model2.pkl")):
         data = pd.read_csv("data_all.csv", names=column_names)
         data.drop(['日期', '股票代码', '名称',
-                   '涨跌额', '涨跌幅', '成交金额', '流通市值', '总市值'], axis=1, inplace=True)
+                   '涨跌额', '涨跌幅', '成交量', '流通市值', '总市值'], axis=1, inplace=True)
 
         data.drop(0, axis=0, inplace=True)
 
@@ -193,7 +190,7 @@ def train_and_predict(*args):
     # data.drop(1, axis=0, inplace=True)
 
     score = score_result[0]
-    # t_predict_zhangfu = score_result[1][0][0]
+    t_predict_zhangfu = score_result[1][0][0]
     t_predict_high = score_result[1][0][1]
     t_predict_low = score_result[1][0][2]
 
@@ -211,7 +208,7 @@ def train_and_predict(*args):
     diefu = -((t_predict_low - today_price) / today_price) * 100
     fudong = ((t_predict_high - t_predict_low) / t_predict_low) * 100
 
-    if zhangfu > 0:
+    if t_predict_zhangfu > 0:
         result_type = "涨"
         file_type = "red"
     else:
@@ -232,12 +229,12 @@ def train_and_predict(*args):
     t_predict_low = round(t_predict_low, 2)
     t_predict_high = round(t_predict_high, 2)
 
-    result = "股票编号：" + code + ",下个交易日会" + result_type + str(zhangfu) + "\n股票名称：" + gupiao_name + "\n收：" + \
+    result = "股票编号：" + code + ",下个交易日会" + result_type + str(t_predict_zhangfu) + "\n股票名称：" + gupiao_name + "\n收：" + \
              str(t_predict_high) + ",精确率：" + str(score) + "\n" + "低：" + str(t_predict_low) + "\n浮动：" + str(
-        fudong) + "\n跌幅：" + str(diefu)
+        fudong) + "\n跌幅：" + str(diefu) + "\n涨幅：" + str(zhangfu)
 
     # if (2.2 > zhangfu > 1.8 or 4 > zhangfu > 3.2) or (is_my_code):
-    if (zhangfu > 1 and today_price > 10 and 0.5 > score > -1 and fudong > 5) or (is_my_code):
+    if (1 > t_predict_zhangfu > -0.5 and 2 > zhangfu > 0.7 and diefu < 1) or (is_my_code):
         with open(os.path.join(end_date + "\\predict_linear2", gupiao_name + '.csv'.format(code=code)), 'w',
                   encoding='utf-8') as f:
             f.write(result)
@@ -304,7 +301,7 @@ if __name__ == '__main__':
     print(worker_num)
     # 多线程
     with ThreadPoolExecutor(max_workers=worker_num) as tpe:
-        tpe.map(train_and_predict, [(code, grid_search) for code in all_code])
+        tpe.map(train_and_predict, [(code, grid_search, start_date, end_date) for code in all_code])
 
     # for code in all_code:
     #     train_and_predict([code, get_today(code, start_date, end_date)[0], grid_search])
